@@ -16,7 +16,8 @@ def enviar (message):
     bot.reply_to (message, """
    Hello! Ask what you want.
 
-       **By: Ricardo Otero**
+   By: Ricardo Otero
+   http://techislife.es/
     """)
     
 
