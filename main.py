@@ -39,8 +39,23 @@ def bytes_to_human_readable(size_bytes):
     return f"{size_bytes:.2f} {units[i]}"
 
 def get_progress_bar(percentage):
-    bars = int(percentage / 10)
-    return "█" * bars + "░" * (10 - bars)
+    bars = int(percentage / 5)
+    return "█" * bars + "░" * (20 - bars)
+
+def format_eta(seconds):
+    if seconds < 60:
+        return f"{seconds:.1f} seconds"
+    elif seconds < 3600:
+        minutes = seconds / 60
+        return f"{minutes:.1f} minutes"
+    else:
+        hours = seconds / 3600
+        return f"{hours:.1f} hours"
+
+def format_elapsed_time(seconds):
+    minutes, seconds = divmod(seconds, 60)
+    hours, minutes = divmod(minutes, 60)
+    return f"{int(hours):02d}:{int(minutes):02d}:{int(seconds):02d}"
 
 if os.path.exists(resume_data_file):
     with open(resume_data_file, 'rb') as f:
@@ -61,6 +76,11 @@ def enviar (message):
     bot.reply_to (message, """
     /mirrorMagnet
     """)
+
+@bot.message_handler(commands=["test"])
+def enviar (message):
+    mess = "<code>inline fixed-width code</code>"
+    bot.reply_to (message, mess, parse_mode="HTML")
 
 @bot.message_handler(func=lambda message:True)
 def run(message):
@@ -105,34 +125,61 @@ def run(message):
             s = handle.status()
             downloaded = bytes_to_human_readable(s.total_done)
             total_size = bytes_to_human_readable(torrent_info.total_size())
+            download_speed = bytes_to_human_readable(s.download_rate)
             progress_percentage = (s.total_done / torrent_info.total_size()) * 100
             progress_bar_t = get_progress_bar(progress_percentage)
+
+
+            # Calculate elapsed time
+            current_time = time.time()
+            elapsed_time_seconds = current_time - start_time
+            elapsed_time_formatted = format_elapsed_time(elapsed_time_seconds)
+
+            # Calculate ETA
+            remaining_bytes = torrent_info.total_size() - s.total_done
+            download_speed_eta = s.download_rate
+            if download_speed_eta > 0:
+              eta_seconds = remaining_bytes / download_speed_eta
+              eta_formatted = format_eta(eta_seconds)
+            else:
+              eta_formatted = "N/A"
+
             state_str = ['queued', 'checking', 'downloading metadata', 'downloading', 'finished', 'seeding', 'allocating', 'checking fastresume']
             progress_bar.set_description(state_str[min(s.state, len(state_str)-1)])
             progress_bar.update(s.total_done - progress_bar.n)
-            hmessage = f"\nTorrent Name: {torrent_info.name()}\n\n{downloaded} of {total_size} done.\n\n[{progress_bar_t}] ({s.progress * 100:.2f})%\n\nDownload Speed: {s.download_rate / 1000:.2f} KB/s"
+            hmessage = f"\n<b>Uploading....</b>\n\n<pre>{torrent_info.name()}</pre>\n\n<code>{downloaded} of {total_size} done.</code>\n[{progress_bar_t}] <pre>({s.progress * 100:.2f}%)</pre>\n<code>Speed: {download_speed}/s</code>\n\n<code>Elapsed Time: {elapsed_time_formatted}</code>\n<code>ETA: {eta_formatted}</code>\n\n<i>Progress will be updated every 5 secs</i>\n"
             #bot.send_message(mess, hmessage)
             if message is None:
               message = bot.send_message(chat_id=CHAT_ID, text=hmessage)
             else:
-              bot.edit_message_text(chat_id=CHAT_ID, message_id=message.message_id, text=hmessage)
+              bot.edit_message_text(chat_id=CHAT_ID, message_id=message.message_id, text=hmessage, parse_mode="HTML")
             #send_status(message.message_id, hmessage)
             #bot.edit_message_text(message.message_id, hmessage)
-            time.sleep(1)
+            time.sleep(5)
 
         progress_bar.close()
 
-        end_time = time.time()
-        total_time_seconds = end_time - start_time
-        total_time_minutes = total_time_seconds / 60
+        #end_time = time.time()
+        #total_time_seconds = end_time - start_time
+        #total_time_minutes = total_time_seconds / 60
 
-        num_files = torrent_info.num_files()
+        #num_files = torrent_info.num_files()
 
-        bot.send_message(mess, f"\nFile name: {torrent_info.name()}")
-        bot.send_message(mess, f"File size: {file_size_str}")
-        bot.send_message(mess, f"Total Time: {total_time_seconds:.2f} seconds / {total_time_minutes:.2f} minutes")
-        bot.send_message(mess, f"Number of files: {num_files}")
-        bot.send_message(mess, f"Saved location: {save_path}")
+        # Torrent is seeding, send a final status update
+        status = handle.status()
+        downloaded = status.total_done
+        total_size = torrent_info.total_size()
+        progress_percentage = (downloaded / total_size) * 100
+        progress_bar_t = get_progress_bar(progress_percentage)
+
+        hmessage = f"\n\n<code>{torrent_info.name()}</code>\n\n<strong>Download Completed Successfully!!!</strong>"
+        bot.edit_message_text(chat_id=CHAT_ID, message_id=message.message_id, text=hmessage, parse_mode="HTML")
+
+        #bot.send_message(mess, f"\nFile name: {torrent_info.name()}")
+        #bot.send_message(mess, f"File size: {file_size_str}")
+        #bot.send_message(mess, f"Total Time: {total_time_seconds:.2f} seconds / {total_time_minutes:.2f} minutes")
+        #bot.send_message(mess, f"Number of files: {num_files}")
+        #bot.send_message(mess, f"Saved location: {save_path}")
 
     #return bot.send_message(mess, "Torrent Downloaded Successfully")
 
