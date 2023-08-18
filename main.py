@@ -147,7 +147,7 @@ def run(message):
             state_str = ['queued', 'checking', 'downloading metadata', 'downloading', 'finished', 'seeding', 'allocating', 'checking fastresume']
             progress_bar.set_description(state_str[min(s.state, len(state_str)-1)])
             progress_bar.update(s.total_done - progress_bar.n)
-            hmessage = f"\n<b>Uploading....</b>\n\n<pre>{torrent_info.name()}</pre>\n\n<code>{downloaded} of {total_size} done.</code>\n[{progress_bar_t}] <pre>({s.progress * 100:.2f}%)</pre>\n<code>Speed: {download_speed}/s</code>\n\n<code>Elapsed Time: {elapsed_time_formatted}</code>\n<code>ETA: {eta_formatted}</code>\n\n<i>Progress will be updated every 5 secs</i>\n"
+            hmessage = f"\n<b>Uploading....</b>\n\n<pre>{torrent_info.name()}</pre>\n\n<code>{downloaded} of {total_size} done.</code>\n[{progress_bar_t}] <pre>({s.progress * 100:.2f}%)</pre>\n<code>Speed: {download_speed}/s</code>\n\n<code>Elapsed Time: {elapsed_time_formatted}</code>\n<code>ETA: {eta_formatted}</code>\n\n<i></i>\n"
             #bot.send_message(mess, hmessage)
             if message is None:
               message = bot.send_message(chat_id=CHAT_ID, text=hmessage)
@@ -155,7 +155,7 @@ def run(message):
               bot.edit_message_text(chat_id=CHAT_ID, message_id=message.message_id, text=hmessage, parse_mode="HTML")
             #send_status(message.message_id, hmessage)
             #bot.edit_message_text(message.message_id, hmessage)
-            time.sleep(5)
+            time.sleep(1)
 
         progress_bar.close()
 
