@@ -9,9 +9,12 @@ from tqdm import tqdm
 from pathlib import Path
 
 
-token = config("TOKEN")
+# Replace with your Telegram bot token
+TELEGRAM_TOKEN = "6474896702:AAH3o6gmHK06yrHsaB0uAbGBaFoHLVYSnwQ"
+CHAT_ID = "383694315"
+#token = config("TOKEN")
 
-bot = telebot.TeleBot(token)
+bot = telebot.TeleBot(TELEGRAM_TOKEN)
 
 ses = lt.session()
 ses.listen_on(6881, 6891)
@@ -27,6 +30,9 @@ magnet_link_pattern = r'^magnet:\?xt=urn:btih:[a-zA-Z0-9]*'
 
 resume_data_file = os.path.join(save_path, 'resume_data.pickle')
 
+def send_status(message_id, text):
+  bot.edit_message_text(CHAT_ID, message_id=message_id, text=text)
+
 if os.path.exists(resume_data_file):
     with open(resume_data_file, 'rb') as f:
         resume_data = pickle.load(f)
@@ -34,37 +40,38 @@ if os.path.exists(resume_data_file):
             ses.add_torrent(data)
 
 
-@bot.message_handler(commands =  ["start", "help"])
+@bot.message_handler(commands =  ["start"])
 def enviar (message):
-    bot.reply_to (message, """
-   Hello! Ask what you want.
-
-   By: Ricardo Otero
-   http://techislife.es/
-    """)
+    bot.reply_to (message, "This is a bot which can mirror all your links to Google drive!\n"
+                "Type /help to get a list of available commands")
     
 
 
-@bot.message_handler(commands=[""])
+@bot.message_handler(commands=["help"])
+def enviar (message):
+    bot.reply_to (message, """
+    /mirrorMagnet
+    """)
 
 @bot.message_handler(func=lambda message:True)
 def run(message):
         
     link= message.text
     mess = message.chat.id
+    mess_id = message.message_id
     model_engine = "text-davinci-003"
     #link = input("Enter the magnet link: ")
     if re.match(magnet_link_pattern, link):
         handle = lt.add_magnet_uri(ses, link, params)
     else:
-        initial_message = bot.send_message(mess, "Invalid magnet link format. Please try again.")
+        initial_message = bot.reply_to(message, "Invalid magnet link format. Please try again.")
     if re.match(magnet_link_pattern, link):
-        bot.send_message(mess, "\nDownloading Metadata...")
+        message = bot.reply_to(message, "\nDownloading Metadata...")
         #("\nDownloading Metadata...")
         while not handle.has_metadata():
             time.sleep(1)
         #print("Got Metadata, Starting Torrent Download...")
-        bot.send_message(mess, "Got Metadata, Starting Torrent Download...")
+        bot.edit_message_text(chat_id=CHAT_ID, message_id=message.message_id, text="Got Metadata, Starting Torrent Download...")
         #bot.edit_message_text("Got Metadata, Starting Torrent Download...", mess, initial_message.message_id)
 
         torrent_info = handle.get_torrent_info()
@@ -75,19 +82,29 @@ def run(message):
         file_size = torrent_info.total_size()
         file_size_mb = file_size / (1024 ** 2)
         file_size_gb = file_size / (1024 ** 3)
-        file_size_str = f"{file_size_mb:.2f} MB / {file_size_gb:.2f} GB"
+        #file_size_str = f"{file_size_mb:.2f} MB / {file_size_gb:.2f} GB"
+        file_size_str = f"{file_size_gb:.2f} GB"
         #print(f"File size: {file_size_str}")
-        bot.send_message(mess, f"File size: {file_size_str}")
+        #bot.send_message(mess, f"File size: {file_size_str}")
 
         progress_bar = tqdm(total=file_size, unit='B', unit_scale=True, leave=True)
 
         start_time = time.time()
 
+        #message = None
         while handle.status().state != lt.torrent_status.seeding:
             s = handle.status()
             state_str = ['queued', 'checking', 'downloading metadata', 'downloading', 'finished', 'seeding', 'allocating', 'checking fastresume']
             progress_bar.set_description(state_str[min(s.state, len(state_str)-1)])
             progress_bar.update(s.total_done - progress_bar.n)
+            hmessage = f"\nTorrent Name: {torrent_info.name()}\n\nFile size: {file_size_str}\n\nDownload Progress: {s.progress * 100:.2f}%\n\nDownload Speed: {s.download_rate / 1000:.2f} KB/s"
+            #bot.send_message(mess, hmessage)
+            if message is None:
+              message = bot.send_message(chat_id=CHAT_ID, text=hmessage)
+            else:
+              bot.edit_message_text(chat_id=CHAT_ID, message_id=message.message_id, text=hmessage)
+            #send_status(message.message_id, hmessage)
+            #bot.edit_message_text(message.message_id, hmessage)
             time.sleep(1)
 
         progress_bar.close()
