@@ -39,8 +39,8 @@ def bytes_to_human_readable(size_bytes):
     return f"{size_bytes:.2f} {units[i]}"
 
 def get_progress_bar(percentage):
-    bars = int(percentage / 5)
-    return "◼️" * bars + "◻️" * (20 - bars)
+    bars = int(percentage / 10)
+    return "◼️" * bars + "◻️" * (10 - bars)
 
 def format_eta(seconds):
     if seconds < 60:
@@ -147,7 +147,7 @@ def run(message):
             state_str = ['queued', 'checking', 'downloading metadata', 'downloading', 'finished', 'seeding', 'allocating', 'checking fastresume']
             progress_bar.set_description(state_str[min(s.state, len(state_str)-1)])
             progress_bar.update(s.total_done - progress_bar.n)
-            hmessage = f"\n<b>Uploading....</b>\n\n<pre>{torrent_info.name()}</pre>\n\n<code>{downloaded} of {total_size} done.</code>\n[{progress_bar_t}] <pre>({s.progress * 100:.2f}%)</pre>\n<code>Speed: {download_speed}/s</code>\n\n<code>Elapsed Time: {elapsed_time_formatted}</code>\n<code>ETA: {eta_formatted}</code>\n\n<i></i>\n"
+            hmessage = f"\n<b>Uploading....</b>\n\n<pre>{torrent_info.name()}</pre>\n\n<code>{downloaded} of {total_size} done.</code>\n<code>|</code>{progress_bar_t}<code>|</code> <pre>({s.progress * 100:.2f}%)</pre>\n<code>Speed: {download_speed}/s</code>\n\n<code>Elapsed Time: {elapsed_time_formatted}</code>\n<code>ETA: {eta_formatted}</code>\n\n<i></i>\n"
             #bot.send_message(mess, hmessage)
             if message is None:
               message = bot.send_message(chat_id=CHAT_ID, text=hmessage)
