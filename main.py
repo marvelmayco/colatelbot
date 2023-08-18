@@ -40,7 +40,7 @@ def bytes_to_human_readable(size_bytes):
 
 def get_progress_bar(percentage):
     bars = int(percentage / 5)
-    return "█" * bars + "░" * (20 - bars)
+    return "◼️" * bars + "◻️" * (20 - bars)
 
 def format_eta(seconds):
     if seconds < 60:
