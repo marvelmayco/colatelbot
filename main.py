@@ -30,8 +30,17 @@ magnet_link_pattern = r'^magnet:\?xt=urn:btih:[a-zA-Z0-9]*'
 
 resume_data_file = os.path.join(save_path, 'resume_data.pickle')
 
-def send_status(message_id, text):
-  bot.edit_message_text(CHAT_ID, message_id=message_id, text=text)
+def bytes_to_human_readable(size_bytes):
+    units = ["B", "KB", "MB", "GB", "TB"]
+    i = 0
+    while size_bytes >= 1024 and i < len(units) - 1:
+        size_bytes /= 1024
+        i += 1
+    return f"{size_bytes:.2f} {units[i]}"
+
+def get_progress_bar(percentage):
+    bars = int(percentage / 10)
+    return "█" * bars + "░" * (10 - bars)
 
 if os.path.exists(resume_data_file):
     with open(resume_data_file, 'rb') as f:
@@ -94,10 +103,14 @@ def run(message):
         #message = None
         while handle.status().state != lt.torrent_status.seeding:
             s = handle.status()
+            downloaded = bytes_to_human_readable(s.total_done)
+            total_size = bytes_to_human_readable(torrent_info.total_size())
+            progress_percentage = (s.total_done / torrent_info.total_size()) * 100
+            progress_bar_t = get_progress_bar(progress_percentage)
             state_str = ['queued', 'checking', 'downloading metadata', 'downloading', 'finished', 'seeding', 'allocating', 'checking fastresume']
             progress_bar.set_description(state_str[min(s.state, len(state_str)-1)])
             progress_bar.update(s.total_done - progress_bar.n)
-            hmessage = f"\nTorrent Name: {torrent_info.name()}\n\nFile size: {file_size_str}\n\nDownload Progress: {s.progress * 100:.2f}%\n\nDownload Speed: {s.download_rate / 1000:.2f} KB/s"
+            hmessage = f"\nTorrent Name: {torrent_info.name()}\n\n{downloaded} of {total_size} done.\n\n[{progress_bar_t}] ({s.progress * 100:.2f})%\n\nDownload Speed: {s.download_rate / 1000:.2f} KB/s"
             #bot.send_message(mess, hmessage)
             if message is None:
               message = bot.send_message(chat_id=CHAT_ID, text=hmessage)
