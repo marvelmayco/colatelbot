@@ -15,6 +15,7 @@ CHAT_ID = "383694315"
 #token = config("TOKEN")
 
 bot = telebot.TeleBot(TELEGRAM_TOKEN)
+caution_msg = "\n\n<i>💖 When I'm Doin This, Do Something Else ! <b>Because, Time Is Precious ✨</b></i>"
 
 ses = lt.session()
 ses.listen_on(6881, 6891)
@@ -41,6 +42,19 @@ def bytes_to_human_readable(size_bytes):
 def get_progress_bar(percentage):
     bars = int(percentage / 10)
     return "⬛" * bars + "⬜" * (10 - bars)
+
+def sysINFO():
+    ram_usage = psutil.Process(os.getpid()).memory_info().rss
+    disk_usage = psutil.disk_usage("/")
+    cpu_usage_percent = psutil.cpu_percent()
+
+    string = "\n\n⌬─────「 Colab Usage 」─────⌬\n"
+    string += f"\n╭🖥️ **CPU Usage »**  __{cpu_usage_percent}%__"
+    string += f"\n├💽 **RAM Usage »**  __{sizeUnit(ram_usage)}__"
+    string += f"\n╰💾 **DISK Free »**  __{sizeUnit(disk_usage.free)}__"
+    string += caution_msg
+
+    return string
 
 def format_eta(seconds):
     if seconds < 60:
