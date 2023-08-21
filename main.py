@@ -1,12 +1,14 @@
 from decouple import config
 import telebot
-import os
+import os, subprocess, psutil
 import libtorrent as lt
 import time
 import re
 import pickle
 from tqdm import tqdm
 from pathlib import Path
+from datetime import datetime
+from os import makedirs, path as ospath
 
 
 # Replace with your Telegram bot token
@@ -21,6 +23,8 @@ ses = lt.session()
 ses.listen_on(6881, 6891)
 
 save_path = '/content/drive/MyDrive/Torrent Downloads/'
+current_time = []
+current_time.append(time.time())
 
 params = {
     'save_path': save_path,
@@ -49,9 +53,9 @@ def sysINFO():
     cpu_usage_percent = psutil.cpu_percent()
 
     string = "\n\n⌬─────「 Colab Usage 」─────⌬\n"
-    string += f"\n╭🖥️ **CPU Usage »**  __{cpu_usage_percent}%__"
-    string += f"\n├💽 **RAM Usage »**  __{sizeUnit(ram_usage)}__"
-    string += f"\n╰💾 **DISK Free »**  __{sizeUnit(disk_usage.free)}__"
+    string += f"\n╭🖥️ <b>CPU Usage »</b>  <i>{cpu_usage_percent}%</i>"
+    string += f"\n├💽 <b>RAM Usage »</b>  <i>{sizeUnit(ram_usage)}</i>"
+    string += f"\n╰💾 <b>DISK Free »</b>  <i>{sizeUnit(disk_usage.free)}</i>"
     string += caution_msg
 
     return string
@@ -76,6 +80,261 @@ if os.path.exists(resume_data_file):
         resume_data = pickle.load(f)
         for data in resume_data:
             ses.add_torrent(data)
+
+
+def get_Aria2c_Name(link):
+    cmd = f'aria2c -x10 --dry-run --file-allocation=none "{link}"'
+    result = subprocess.run(cmd, stdout=subprocess.PIPE, shell=True)
+    stdout_str = result.stdout.decode("utf-8")
+    filename = stdout_str.split("complete: ")[-1].split("\n")[0]
+    name = filename.split("/")[-1]
+    if len(name) == 0:
+        name = "UNKNOWN DOWNLOAD NAME"
+    return name
+
+def getTime(seconds):
+    seconds = int(seconds)
+    days = seconds // (24 * 3600)
+    seconds = seconds % (24 * 3600)
+    hours = seconds // 3600
+    seconds %= 3600
+    minutes = seconds // 60
+    seconds %= 60
+
+    if days > 0:
+        return f"{days}d {hours}h {minutes}m {seconds}s"
+    elif hours > 0:
+        return f"{hours}h {minutes}m {seconds}s"
+    elif minutes > 0:
+        return f"{minutes}m {seconds}s"
+    else:
+        return f"{seconds}s"
+
+
+def sizeUnit(size):
+    if size > 1024 * 1024 * 1024 * 1024 * 1024:
+        siz = f"{size/(1024**5):.2f} PiB"
+    elif size > 1024 * 1024 * 1024 * 1024:
+        siz = f"{size/(1024**4):.2f} TiB"
+    elif size > 1024 * 1024 * 1024:
+        siz = f"{size/(1024**3):.2f} GiB"
+    elif size > 1024 * 1024:
+        siz = f"{size/(1024**2):.2f} MiB"
+    elif size > 1024:
+        siz = f"{size/1024:.2f} KiB"
+    else:
+        siz = f"{size} B"
+    return siz
+
+
+def fileType(file_path: str):
+    extensions_dict = {
+        ".mp4": "video",
+        ".avi": "video",
+        ".mkv": "video",
+        ".m2ts": "video",
+        ".mov": "video",
+        ".webm": "video",
+        ".vob": "video",
+        ".m4v": "video",
+        ".mp3": "audio",
+        ".wav": "audio",
+        ".flac": "audio",
+        ".aac": "audio",
+        ".ogg": "audio",
+        ".jpg": "photo",
+        ".jpeg": "photo",
+        ".png": "photo",
+        ".bmp": "photo",
+        ".gif": "photo",
+    }
+    _, extension = ospath.splitext(file_path)
+
+    if extension.lower() in extensions_dict:
+        return extensions_dict[extension]
+    else:
+        return "document"
+
+
+def shortFileName(path):
+    if ospath.isfile(path):
+        dir_path, filename = ospath.split(path)
+        if len(filename) > 60:
+            basename, ext = ospath.splitext(filename)
+            basename = basename[: 60 - len(ext)]
+            filename = basename + ext
+            path = ospath.join(dir_path, filename)
+        return path
+    elif ospath.isdir(path):
+        dir_path, dirname = ospath.split(path)
+        if len(dirname) > 60:
+            dirname = dirname[:60]
+            path = ospath.join(dir_path, dirname)
+        return path
+    else:
+        if len(path) > 60:
+            path = path[:60]
+        return path
+
+
+def getSize(path):
+    if ospath.isfile(path):
+        return ospath.getsize(path)
+    else:
+        total_size = 0
+        for dirpath, _, filenames in os.walk(path):
+            for f in filenames:
+                fp = ospath.join(dirpath, f)
+                total_size += ospath.getsize(fp)
+        return total_size
+
+def isTimeOver(current_time):
+    ten_sec_passed = time.time() - current_time[0] >= 3
+    if ten_sec_passed:
+        current_time[0] = time.time()
+    return ten_sec_passed
+
+
+def speedETA(start, done, total):
+    percentage = (done / total) * 100
+    percentage = 100 if percentage > 100 else percentage
+    elapsed_time = (datetime.now() - start).seconds
+    if done > 0 and elapsed_time != 0:
+        raw_speed = done / elapsed_time
+        speed = f"{sizeUnit(raw_speed)}/s"
+        eta = (total - done) / raw_speed
+    else:
+        speed, eta = "N/A", 0
+    return speed, eta, percentage
+
+def status_bar(down_msg, speed, percentage, eta, done, left, engine):
+    bar_length = 12
+    filled_length = int(percentage / 100 * bar_length)
+    # bar = "⬢" * filled_length + "⬡" * (bar_length - filled_length)
+    bar = "█" * filled_length + "░" * (bar_length - filled_length)
+    message = (
+        f"\n╭「{bar}」 » <i>{percentage:.2f}%</i>\n├⚡️ <b>Speed »</b> <i>{speed}</i>\n├⚙️ <b>Engine »</b> <i>{engine}</i>"
+        + f"\n├⏳ <b>Time Left »</b> <i>{eta}</i>"
+        + f"\n├🍃 <b>Time Spent »</b> <i>{getTime((datetime.now() - start_time).seconds)}</i>"
+        + f"\n├✅ <b>Processed »</b> <i>{done}</i>\n╰📦 <b>Total Size »</b> <i>{left}</i>"
+    )
+    sys_text = sysINFO()
+    try:
+        print(f"\r{engine} ║ {bar} ║ {percentage:.2f}% ║ {speed} ║ ⏳ {eta}", end="")
+        # Edit the message with updated progress information.
+        if isTimeOver(current_time):
+            bot.edit_message_text(
+                chat_id=CHAT_ID,
+                message_id=mssg_id,  # type: ignore
+                text=down_msg + message + sys_text,
+                parse_mode="HTML"
+            )
+
+    except Exception as e:
+        # Catch any exceptions that might occur while editing the message.
+        print(f"Error Updating Status bar: {str(e)}")
+
+def on_output(output: str):
+    # print("=" * 60 + f"\n\n{output}\n\n" + "*" * 60)
+    global link_info
+    total_size = "0B"
+    progress_percentage = "0B"
+    downloaded_bytes = "0B"
+    eta = "0S"
+    try:
+        if "ETA:" in output:
+            parts = output.split()
+            total_size = parts[1].split("/")[1]
+            total_size = total_size.split("(")[0]
+            progress_percentage = parts[1][parts[1].find("(") + 1 : parts[1].find(")")]
+            downloaded_bytes = parts[1].split("/")[0]
+            eta = parts[4].split(":")[1][:-1]
+    except Exception as do:
+        print(f"Could't Get Info Due to: {do}")
+
+    percentage = re.findall("\d+\.\d+|\d+", progress_percentage)[0]  # type: ignore
+    down = re.findall("\d+\.\d+|\d+", downloaded_bytes)[0]  # type: ignore
+    down_unit = re.findall("[a-zA-Z]+", downloaded_bytes)[0]
+    if "G" in down_unit:
+        spd = 3
+    elif "M" in down_unit:
+        spd = 2
+    elif "K" in down_unit:
+        spd = 1
+    else:
+        spd = 0
+
+    elapsed_time_seconds = (datetime.now() - start_time).seconds
+
+    if elapsed_time_seconds >= 270 and not link_info:
+        raise Exception("Failed to get download information ! Probably dead link 💀")
+    # Only Do this if got Information
+    if total_size != "0B":
+        # Calculate download speed
+        link_info = True
+        current_speed = (float(down) * 1024**spd) / elapsed_time_seconds
+        speed_string = f"{sizeUnit(current_speed)}/s"
+
+        status_bar(
+            down_msg,
+            speed_string,
+            int(percentage),
+            eta,
+            downloaded_bytes,
+            total_size,
+            "Aria2c 🧨",
+        )
+
+def aria2_Download(link, num):
+
+    global start_time, down_msg
+    name_d = get_Aria2c_Name(link)
+    start_time = datetime.now()
+    link_hyper = f'<a href="{link}">{name_d}</a>'
+    down_msg = f"<b>📥 DOWNLOADING FROM » </b><i>🔗Link » {link_hyper}</i>\n\n<b>🏷️ Name » </b><code>{name_d}</code>\n"
+
+    # Create a command to run aria2p with the link
+    command = [
+        "aria2c",
+        "-x16",
+        "--seed-time=0",
+        "--summary-interval=1",
+        "--max-tries=3",
+        "--console-log-level=notice",
+        "-d",
+        "/content/drive/MyDrive/bot_Downloads",
+        link,
+    ]
+
+    # Run the command using subprocess.Popen
+    proc = subprocess.Popen(
+        command, bufsize=0, stdout=subprocess.PIPE, stderr=subprocess.PIPE
+    )
+
+    # Read and print output in real-time
+    while True:
+        output = proc.stdout.readline()  # type: ignore
+        if output == b"" and proc.poll() is not None:
+            break
+        if output:
+            # sys.stdout.write(output.decode("utf-8"))
+            # sys.stdout.flush()
+            on_output(output.decode("utf-8"))
+
+    # Retrieve exit code and any error output
+    exit_code = proc.wait()
+    error_output = proc.stderr.read()  # type: ignore
+    if exit_code != 0:
+        if exit_code == 3:
+            raise Exception(f"The Resource was Not Found in {link}")
+        elif exit_code == 9:
+            raise Exception(f"Not enough disk space available")
+        elif exit_code == 24:
+            raise Exception(f"HTTP authorization failed.")
+        else:
+            raise Exception(
+                f"aria2c download failed with return code {exit_code} for {link}.\nError: {error_output}"
+            )
 
 
 @bot.message_handler(commands =  ["start"])
@@ -103,11 +362,19 @@ def run(message):
     mess = message.chat.id
     mess_id = message.message_id
     model_engine = "text-davinci-003"
+    task_start = datetime.now()
+
     #link = input("Enter the magnet link: ")
+
     if re.match(magnet_link_pattern, link):
         handle = lt.add_magnet_uri(ses, link, params)
     else:
-        initial_message = bot.reply_to(message, "Invalid magnet link format. Please try again.")
+        message = bot.reply_to(message, "\nChecking...")
+        global mssg_id
+        mssg_id = message.message_id
+        #initial_message = bot.reply_to(message, "Invalid magnet link format. Please try again.")
+        aria2_Download(link, 1)
+
     if re.match(magnet_link_pattern, link):
         message = bot.reply_to(message, "\nDownloading Metadata...")
         #("\nDownloading Metadata...")
