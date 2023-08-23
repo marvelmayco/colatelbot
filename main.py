@@ -22,7 +22,7 @@ caution_msg = "\n\n<i>💖 When I'm Doin This, Do Something Else ! <b>Because, T
 ses = lt.session()
 ses.listen_on(6881, 6891)
 
-save_path = '/content/drive/MyDrive/Torrent Downloads/'
+save_path = '/content/drive/MyDrive/MyBot_Downloads/'
 current_time = []
 current_time.append(time.time())
 
@@ -333,7 +333,7 @@ def aria2_Download(link):
         "--max-tries=3",
         "--console-log-level=notice",
         "-d",
-        "/content/drive/MyDrive/bot_Downloads",
+        save_path,
         link,
     ]
 
