@@ -22,7 +22,7 @@ caution_msg = "\n\n<i>💖 When I'm Doin This, Do Something Else ! <b>Because, T
 ses = lt.session()
 ses.listen_on(6881, 6891)
 
-save_path = '/content/drive/MyDrive/MyBot_Downloads/'
+save_path = '/content/drive/Shareddrives/#104/MyBot_Downloads/'
 current_time = []
 current_time.append(time.time())
 
