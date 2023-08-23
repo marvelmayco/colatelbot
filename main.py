@@ -212,12 +212,21 @@ def status_bar(down_msg, speed, percentage, eta, done, left, engine):
     filled_length = int(percentage / 100 * bar_length)
     # bar = "⬢" * filled_length + "⬡" * (bar_length - filled_length)
     bar = "█" * filled_length + "░" * (bar_length - filled_length)
-    message = (
-        f"\n╭「{bar}」 » <i>{percentage:.2f}%</i>\n├⚡️ <b>Speed »</b> <i>{speed}</i>\n├⚙️ <b>Engine »</b> <i>{engine}</i>"
-        + f"\n├⏳ <b>Time Left »</b> <i>{eta}</i>"
-        + f"\n├🍃 <b>Time Spent »</b> <i>{getTime((datetime.now() - start_time).seconds)}</i>"
-        + f"\n├✅ <b>Processed »</b> <i>{done}</i>\n╰📦 <b>Total Size »</b> <i>{left}</i>"
-    )
+    if is_it_magnetlink:
+      message = (
+          f"\n╭「{bar}」 <b>»</b> <i>{percentage:.2f}%</i>\n├⚡️ <b>Speed »</b> <i>{speed}</i>\n├⚙️ <b>Engine »</b> <i>{engine}</i>"
+          + f"\n├⏳ <b>Time Left »</b> <i>{eta}</i>"
+          + f"\n├🍃 <b>Time Spent »</b> <i>{getTime((datetime.now() - start_time).seconds)}</i>"
+          + f"\n├🦧 <b>Peers »</b> <i>{peers_list}</i> <b> & </b>🦉 <b>Seeders »</b> <i>{seeds_list}</i>"
+          + f"\n├✅ <b>Processed »</b> <i>{done}</i>\n╰📦 <b>Total Size »</b> <i>{left}</i>"
+      )
+    else:
+      message = (
+          f"\n╭「{bar}」 <b>»</b> <i>{percentage:.2f}%</i>\n├⚡️ <b>Speed »</b> <i>{speed}</i>\n├⚙️ <b>Engine »</b> <i>{engine}</i>"
+          + f"\n├⏳ <b>Time Left »</b> <i>{eta}</i>"
+          + f"\n├🍃 <b>Time Spent »</b> <i>{getTime((datetime.now() - start_time).seconds)}</i>"
+          + f"\n├✅ <b>Processed »</b> <i>{done}</i>\n╰📦 <b>Total Size »</b> <i>{left}</i>"
+      )
     sys_text = sysINFO()
     try:
         print(f"\r{engine} ║ {bar} ║ {percentage:.2f}% ║ {speed} ║ ⏳ {eta}", end="")
@@ -236,11 +245,12 @@ def status_bar(down_msg, speed, percentage, eta, done, left, engine):
 
 def on_output(output: str):
     # print("=" * 60 + f"\n\n{output}\n\n" + "*" * 60)
-    global link_info
+    global link_info, d_total_size, peers_list, seeds_list
     total_size = "0B"
     progress_percentage = "0B"
     downloaded_bytes = "0B"
     eta = "0S"
+    
     try:
         if "ETA:" in output:
             parts = output.split()
@@ -249,9 +259,17 @@ def on_output(output: str):
             progress_percentage = parts[1][parts[1].find("(") + 1 : parts[1].find(")")]
             downloaded_bytes = parts[1].split("/")[0]
             eta = parts[4].split(":")[1][:-1]
+
+            # Iterate through the parts to find the values
+            for part in parts:
+              if part.startswith('CN:'):
+                  peers_list = part[3:]
+              elif part.startswith('SD:'):
+                  seeds_list = part[3:]
     except Exception as do:
         print(f"Could't Get Info Due to: {do}")
 
+    #final_total_size = total_size
     percentage = re.findall("\d+\.\d+|\d+", progress_percentage)[0]  # type: ignore
     down = re.findall("\d+\.\d+|\d+", downloaded_bytes)[0]  # type: ignore
     down_unit = re.findall("[a-zA-Z]+", downloaded_bytes)[0]
@@ -272,6 +290,7 @@ def on_output(output: str):
     if total_size != "0B":
         # Calculate download speed
         link_info = True
+        d_total_size = total_size
         current_speed = (float(down) * 1024**spd) / elapsed_time_seconds
         speed_string = f"{sizeUnit(current_speed)}/s"
 
@@ -285,9 +304,21 @@ def on_output(output: str):
             "Aria2c 🧨",
         )
 
-def aria2_Download(link, num):
+def aria2_Download(link):
 
-    global start_time, down_msg
+    aria2_dn = f"<b>PLEASE WAIT ⌛</b>\n\n<i>Getting Download Info For</i>\n\n<code>{link}</code>"
+    try:
+        bot.edit_message_text(
+            chat_id=CHAT_ID,
+            message_id=mssg_id,  # type: ignore
+            text=aria2_dn + sysINFO(),
+            parse_mode="HTML"
+        )
+    except Exception as e1:
+        print(f"Couldn't Update text ! Because: {e1}")
+
+    global start_time, down_msg, name_d, link_info
+    link_info = False
     name_d = get_Aria2c_Name(link)
     start_time = datetime.now()
     link_hyper = f'<a href="{link}">{name_d}</a>'
@@ -335,7 +366,69 @@ def aria2_Download(link, num):
             raise Exception(
                 f"aria2c download failed with return code {exit_code} for {link}.\nError: {error_output}"
             )
+        
+    
 
+def FinalStep(msg, is_leech: bool):
+
+    """
+    final_text = (
+        f"<b>☘️ File Count:</b>  <code>{len(sent_file)}</code>\n\n<b>📜 Logs:</b>\n"
+    )
+    l_ink = "⌬─────[「 Colab Usage 」](https://colab.research.google.com/drive/12hdEqaidRZ8krqj7rpnyDzg1dkKmvdvp)─────⌬"
+
+    file_count = (
+        f"├<b>☘️ File Count » </b><code>{len(sent_file)} Files</code>\n"
+        if is_leech
+        else ""
+    )
+    
+
+    size = sizeUnit(sum(up_bytes)) if is_leech else sizeUnit(total_down_size)
+    """
+
+    last_text = (
+        f"\n\n<b>🔥 DOWNLOAD_COMPLETED 🔥</b>\n\n"
+        + f"╭<b>📛 Name » </b><code>{name_d}</code>\n"
+        + f"├<b>📦 Size » </b><code>{d_total_size}</code>\n"
+        #+ file_count
+        + f"╰<b>🍃 Saved Time »</b> <code>{getTime((datetime.now() - start_time).seconds)}</code>"
+    )
+
+    bot.edit_message_text(
+        chat_id=CHAT_ID,
+        message_id=msg.id,
+        text=last_text,
+        parse_mode="HTML"
+    )
+
+    """
+    if is_leech:
+        try:
+            final_texts = []
+            for i in range(len(sent_file)):
+                file_link = f"https://t.me/c/{link_p}/{sent_file[i].id}"
+                fileName = sent_fileName[i]
+                fileText = f"\n({str(i+1).zfill(2)}) <a href={file_link}>{fileName}</a>"
+                if len(final_text + fileText) >= 4096:
+                    final_texts.append(final_text)
+                    final_text = fileText
+                else:
+                    final_text += fileText
+            final_texts.append(final_text)
+
+            for fn_txt in final_texts:
+                msg = bot.send_message(
+                    chat_id=chat_id, reply_to_message_id=msg.id, text=fn_txt
+                )
+        except Exception as e:
+            Err = f"<b>Error Sending logs » </b><i>{e}</i>"
+            Err += f"\n\n<i>⚠️ If You are Unknown with this <b>ERROR<b>, Then Forward This Message in [Colab Leecher Discussion](https://t.me/Colab_Leecher_Discuss) Where [Xron Trix](https://t.me/XronTrix) may fix it</i>"
+            bot.send_message(
+                chat_id=chat_id, reply_to_message_id=msg.id, text=Err
+            )
+      """
+    
 
 @bot.message_handler(commands =  ["start"])
 def enviar (message):
@@ -359,21 +452,31 @@ def enviar (message):
 def run(message):
         
     link= message.text
-    mess = message.chat.id
-    mess_id = message.message_id
-    model_engine = "text-davinci-003"
-    task_start = datetime.now()
-
-    #link = input("Enter the magnet link: ")
+    global mssg_id, link_info, is_it_magnetlink
+    is_it_magnetlink = False
 
     if re.match(magnet_link_pattern, link):
-        handle = lt.add_magnet_uri(ses, link, params)
-    else:
-        message = bot.reply_to(message, "\nChecking...")
-        global mssg_id
-        mssg_id = message.message_id
+        is_it_magnetlink = True
+
+    down_msg = f"<b>📥 DOWNLOADING » </b>\n"
+    while True:
+        try:
+            message = bot.reply_to(message,
+                        text=down_msg
+                        + f"\n📝 <i>Starting DOWNLOAD...</i>"
+                        + sysINFO(),
+                        parse_mode="HTML"
+                    )
+        except Exception as e:
+            pass
+        else:
+            break
+
+    mssg_id = message.message_id
         #initial_message = bot.reply_to(message, "Invalid magnet link format. Please try again.")
-        aria2_Download(link, 1)
+    aria2_Download(link)
+
+    """
 
     if re.match(magnet_link_pattern, link):
         message = bot.reply_to(message, "\nDownloading Metadata...")
@@ -463,6 +566,8 @@ def run(message):
         #bot.send_message(mess, f"Saved location: {save_path}")
 
     #return bot.send_message(mess, "Torrent Downloaded Successfully")
+    """
+    FinalStep(message, False)
 
 # save resume data
 resume_data = []
