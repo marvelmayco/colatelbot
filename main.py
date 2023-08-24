@@ -9,6 +9,7 @@ from tqdm import tqdm
 from pathlib import Path
 from datetime import datetime
 from os import makedirs, path as ospath
+from IPython.display import clear_output
 
 
 # Replace with your Telegram bot token
@@ -450,7 +451,7 @@ def enviar (message):
 
 @bot.message_handler(func=lambda message:True)
 def run(message):
-        
+    clear_output()
     link= message.text
     global mssg_id, link_info, is_it_magnetlink
     is_it_magnetlink = False
