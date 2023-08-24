@@ -327,7 +327,7 @@ def aria2_Download(link):
     # Create a command to run aria2p with the link
     command = [
         "aria2c",
-        "-x16",
+        "-x8",
         "--seed-time=0",
         "--summary-interval=1",
         "--max-tries=3",
@@ -455,8 +455,6 @@ def run(message):
     global mssg_id, link_info, is_it_magnetlink
     is_it_magnetlink = False
 
-    if re.match(magnet_link_pattern, link):
-        is_it_magnetlink = True
 
     down_msg = f"<b>📥 DOWNLOADING » </b>\n"
     while True:
@@ -473,19 +471,29 @@ def run(message):
             break
 
     mssg_id = message.message_id
-        #initial_message = bot.reply_to(message, "Invalid magnet link format. Please try again.")
-    aria2_Download(link)
+    
+    if re.match(magnet_link_pattern, link):
+        is_it_magnetlink = True
+        handle = lt.add_magnet_uri(ses, link, params)
+    else:
+        aria2_Download(link)
 
-    """
 
     if re.match(magnet_link_pattern, link):
-        message = bot.reply_to(message, "\nDownloading Metadata...")
+        #message = bot.reply_to(message, "\nDownloading Metadata...")
         #("\nDownloading Metadata...")
         while not handle.has_metadata():
             time.sleep(1)
-        #print("Got Metadata, Starting Torrent Download...")
-        bot.edit_message_text(chat_id=CHAT_ID, message_id=message.message_id, text="Got Metadata, Starting Torrent Download...")
-        #bot.edit_message_text("Got Metadata, Starting Torrent Download...", mess, initial_message.message_id)
+        trnt_dn = f"<b>PLEASE WAIT ⌛</b>\n\n<i>Getting Download Info For</i>\n\n<code>{link}</code>"
+        try:
+            bot.edit_message_text(
+                chat_id=CHAT_ID,
+                message_id=mssg_id,  # type: ignore
+                text=trnt_dn + sysINFO(),
+                parse_mode="HTML"
+            )
+        except Exception as e1:
+            print(f"Couldn't Update text ! Because: {e1}")
 
         torrent_info = handle.get_torrent_info()
       
@@ -566,7 +574,7 @@ def run(message):
         #bot.send_message(mess, f"Saved location: {save_path}")
 
     #return bot.send_message(mess, "Torrent Downloaded Successfully")
-    """
+    
     FinalStep(message, False)
 
 # save resume data
